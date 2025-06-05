@@ -11,8 +11,8 @@ app.use(
 app.use(express.json({limit:"16kb"}))
 app.use(express.urlencoded({extended:true , limit:"116kb"}))
 app.use(express.static("public"))
+// importing routes
 
-
-
-
+import heakthcheckrouter from "./routes/health_check_router.js";
+ app.use("/api/v1/healthcheck", heakthcheckrouter)
 export{ app }

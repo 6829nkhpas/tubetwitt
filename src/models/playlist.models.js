@@ -1,14 +1,17 @@
 import mongoose,{Schema} from "mongoose"
-const commentSchema= new Schema({
-    content:{
+ const playlistSchema= new Schema({
+    name:{
         type:String,
         required:true
     },
-    video:{
-        type:Schema.Types.ObjectId,
-        ref:"Video",
+    description:{
+        type:String,
         required:true
     },
+    videos:[{
+        type:Schema.Types.ObjectId,
+        ref:"Video"
+    }],
     owner:{
         type:Schema.Types.ObjectId,
         ref:"User",
@@ -17,4 +20,4 @@ const commentSchema= new Schema({
 },
 {timestamps:true}
 )
-export const Comment= mongoose.model("Comment",commentSchema)
+export const Playlist= mongoose.model("Playlist",playlistSchema)

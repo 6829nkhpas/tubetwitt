@@ -28,3 +28,4 @@ import fs from 'fs';
                 console.log(failed) // Delete the file if upload fails
             }
         }
+        export { uploadOnCloudinary };

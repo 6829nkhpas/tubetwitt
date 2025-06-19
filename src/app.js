@@ -18,4 +18,6 @@ app.use("/api/v1/users", userrouter);
 
 
  app.use("/api/v1/healthcheck", heakthcheckrouter)
+  import errorHandler from "./middlewares/error.middlewares.js";
+app.use(errorHandler);
 export{ app }

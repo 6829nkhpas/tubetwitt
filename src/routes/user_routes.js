@@ -3,7 +3,7 @@ import { resgister_user } from "../controllers/user_controler.js";
 import { upload } from "../middlewares/multer.fileupload.js";
 const router = Router();
 
-router.route("/").post(
+router.route("/register").post(
   upload.fields([
     { name: "avatar", maxCount: 1 },
     { name: "coverImage", maxCount: 1 },

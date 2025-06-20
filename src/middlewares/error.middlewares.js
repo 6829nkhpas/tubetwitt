@@ -20,9 +20,7 @@ export default function errorHandler(err, req, res, next) {
   const respone = {
     ...error,
     message: error.message,
-    ...Apierror(
-      process.env.NODE_ENV === "development" ? { stack: error.stack } : {}
-    ),
+    ...(process.env.NODE_ENV === "development" ? { stack: error.stack } : {}),
   };
 
   return res.status(error.statusCode || 500).json(respone);

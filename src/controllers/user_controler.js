@@ -1,8 +1,26 @@
 import { Asynchandler } from "../utils/Asynchandler.js";
 import { User } from "../models/users.model.js";
 import { Apierror } from "../utils/errorResponse.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary ,deleteFromCloudinary, } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
+
+
+const generateAccessTokenAndRefreshToken = async(userId) => {
+  try {
+    const user = await User.findById(userId);
+    if(!user) {
+      throw new Apierror(404, "User not found");
+    }
+    const accessToken=user.generateAccessToken();
+    const refreshToken=user.generateRefreshToken();
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new Apierror(500, "Error generating tokens");
+    
+  }
+}
 const resgister_user = Asynchandler(async (req, res) => {
   const { fullname, email, password, username } = req.body;
   if (
@@ -43,28 +61,70 @@ const resgister_user = Asynchandler(async (req, res) => {
     console.log("Error uploading files:", error);
     throw new Apierror(500, "Failed to upload cover image files");
   }
-  const user = await User.create({
-    fullname,
-    email,
-    username: username.toLowerCase(),
-    avatar: avatar.url,
-    coverImage: coverImage?.url || "",
-    password,
-  });
-  const createdUser = await User.findById(user._id).select(
+  try {
+    const user = await User.create({
+      fullname,
+      email,
+      username: username.toLowerCase(),
+      avatar: avatar.url,
+      coverImage: coverImage?.url || "",
+      password,
+    });
+    const createdUser = await User.findById(user._id).select(
+      "-password -refreshToken"
+    );
+    if (!createdUser) {
+      throw new Apierror(504, "User not found");
+    }
+    return res
+      .status(201)
+      .json(new ApiResponse(201, createdUser, "User registered successfully"));
+  } catch (error) {
+    console.log("user creation error:", error);
+    if (avatar?.public_id) {
+      await deleteFromCloudinary(avatar.public_id);
+    }
+    if( coverImage?.public_id) {
+      await deleteFromCloudinary(coverImage.public_id);
+    }
+    throw new Apierror(512, "images are deleted from cloudinary");
+    
+  }
+});
+
+ const login_user = Asynchandler(async (req, res) => {
+  const { email,username, password } = req.body;
+  if ([email, password].some((field) => field?.trim() === "")) {
+    throw new Apierror(400, ["All fields are required"]);
+  }
+  const user = await User.findOne({
+    $or:[{username},{email}] });
+  if (!user) {
+    throw new Apierror(404, "User not found");
+  }
+  const isPasswordCorrect = await user.isPasswordCorrect(password);
+  if (!isPasswordCorrect) {
+    throw new Apierror(401, "Invalid credentials");
+  }
+  const {accessToken,refreshToken} = await generateAccessTokenAndRefreshToken(user._id);
+  const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
-  if (!createdUser) {
+  if (!loggedInUser) {
     throw new Apierror(504, "User not found");
   }
-  return res
-    .status(201)
-    .json(new ApiResponse(201, createdUser, "User registered successfully"));
-});
-export { resgister_user };
+  const options={
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  }
 
-console.log(
-  "Cloudinary config:",
-  process.env.cloudinary_Name,
-  process.env.cloudinary_Api_key
-);
+  return res.status(200).cookie("accessToken", accessToken, options)
+  .cookie("refreshToken", refreshToken, options)
+  .json(
+    new ApiResponse(200, {user: loggedInUser,accessToken,refreshToken}, "User logged in successfully")
+  );
+})
+
+export { resgister_user,login_user,generateAccessTokenAndRefreshToken };
+
+// This code defines user registration and login functionalities using asynchronous handlers.

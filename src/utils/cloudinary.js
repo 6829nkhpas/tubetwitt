@@ -13,7 +13,7 @@ console.log(
   "Cloudinary config:",
   process.env.cloudinary_name,
   process.env.cloudinary_Api_key,
- process.env.cloudinary_Api_Secret
+  process.env.cloudinary_Api_Secret
 );
 
 const uploadOnCloudinary = async (localFilePath) => {
@@ -34,7 +34,7 @@ const uploadOnCloudinary = async (localFilePath) => {
     if (localFilePath && fs.existsSync(localFilePath)) {
       fs.unlinkSync(localFilePath);
     }
-    return null;
+    throw error; // Re-throw the error instead of returning null
   }
 };
 const deleteFromCloudinary = async (publicId) => {
@@ -52,4 +52,9 @@ const deleteFromCloudinary = async (publicId) => {
     return null;
   }
 };
-export { uploadOnCloudinary ,deleteFromCloudinary};
+export { uploadOnCloudinary, deleteFromCloudinary };
+console.log(
+  process.env.cloudinary_name,
+  process.env.cloudinary_Api_key,
+  process.env.cloudinary_Api_Secret
+);

@@ -3,6 +3,7 @@ import { User } from "../models/users.model.js";
 import { Apierror } from "../utils/errorResponse.js";
 import { uploadOnCloudinary ,deleteFromCloudinary, } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
+import jwt from "jsonwebtoken";
 
 
 const generateAccessTokenAndRefreshToken = async(userId) => {
@@ -124,7 +125,41 @@ const resgister_user = Asynchandler(async (req, res) => {
     new ApiResponse(200, {user: loggedInUser,accessToken,refreshToken}, "User logged in successfully")
   );
 })
+const logout_user = Asynchandler(async (req, res) => {
 
-export { resgister_user,login_user,generateAccessTokenAndRefreshToken };
+})
+const refreshAccessToken= Asynchandler(async (req, res) => {
+  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+  if (!incomingRefreshToken) {
+    throw new Apierror(401, "Refresh token not provided");
+  }
+  try {
+    const decodedToken =jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+    )
+     const user =await user.findById(decodedToken?.id)
+     if (!user) {
+      throw new Apierror(404, "Invalid refresh token");
+     }
+     if( user.refreshToken !== incomingRefreshToken) {
+      throw new Apierror(401, "Invalid refresh token");
+     }
+     const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+     }
+     const {accessToken,refreshToken:newRefreshToken}=await generateAccessTokenAndRefreshToken(user._id);
+     return res.status(200).cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json( new ApiResponse(200, { accessToken, refreshToken: newRefreshToken }, "Access token refreshed successfully"));
+  } catch (error) {
+    throw new Apierror(500, "something went wrong while refreshing access token");
+    
+  }
+ 
+});
+
+export {refreshAccessToken, resgister_user,login_user,generateAccessTokenAndRefreshToken };
 
 // This code defines user registration and login functionalities using asynchronous handlers.

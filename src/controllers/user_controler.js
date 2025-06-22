@@ -23,7 +23,9 @@ const generateAccessTokenAndRefreshToken = async (userId) => {
     throw new Apierror(500, "Error generating tokens");
   }
 };
+
 const resgister_user = Asynchandler(async (req, res) => {
+  
   const { fullname, email, password, username } = req.body;
   if (
     [fullname, email, username, password].some((field) => field?.trim() === "")
@@ -95,7 +97,9 @@ const resgister_user = Asynchandler(async (req, res) => {
 });
 
 const login_user = Asynchandler(async (req, res) => {
+
   const { email, username, password } = req.body;
+
   if ([email, password].some((field) => field?.trim() === "")) {
     throw new Apierror(400, ["All fields are required"]);
   }
@@ -134,31 +138,61 @@ const login_user = Asynchandler(async (req, res) => {
       )
     );
 });
-const logout_user = Asynchandler(async (req, res) => {});
+
+
+const logout_user = Asynchandler(async (req, res) => {
+   await User.findByIdAndUpdate(req.user._id, {
+    $set : { refreshToken: undefined },
+   },
+   {new: true}
+    );
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  }
+  return res
+  .status(200)
+  .clearCookie("accessToken", options)
+  .clearCookie("refreshToken", options) 
+  .json(
+    new ApiResponse(200, null, "User logged out successfully")
+  );
+});
+
+
 const refreshAccessToken = Asynchandler(async (req, res) => {
+
   const incomingRefreshToken =
     req.cookies.refreshToken || req.body.refreshToken;
+
   if (!incomingRefreshToken) {
     throw new Apierror(401, "Refresh token not provided");
   }
+
   try {
     const decodedToken = jwt.verify(
       incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
+
     const user = await user.findById(decodedToken?.id);
+
     if (!user) {
       throw new Apierror(404, "Invalid refresh token");
     }
+
     if (user.refreshToken !== incomingRefreshToken) {
       throw new Apierror(401, "Invalid refresh token");
     }
+
     const options = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
     };
+
     const { accessToken, refreshToken: newRefreshToken } =
       await generateAccessTokenAndRefreshToken(user._id);
+
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
@@ -170,6 +204,7 @@ const refreshAccessToken = Asynchandler(async (req, res) => {
           "Access token refreshed successfully"
         )
       );
+
   } catch (error) {
     throw new Apierror(
       500,
@@ -183,6 +218,7 @@ export {
   resgister_user,
   login_user,
   generateAccessTokenAndRefreshToken,
+  logout_user
 };
 
 // This code defines user registration and login functionalities using asynchronous handlers.

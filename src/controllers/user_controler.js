@@ -414,7 +414,9 @@ export {
   getcurrentUser,
   updateAccountDetails,
   updateAvatar,
-  updateCoverImage
+  updateCoverImage,
+  getUserChannelProfile,
+  getWatchHistory
 };
 
 // This code defines user registration and login functionalities using asynchronous handlers.

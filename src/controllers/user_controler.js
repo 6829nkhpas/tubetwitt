@@ -7,6 +7,7 @@ import {
 } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
   try {
@@ -292,6 +293,116 @@ const updateCoverImage = Asynchandler(async (req, res) => {
   ).select("-password -refreshToken");
   return res.status(200).json(new ApiResponse(200, user, "Cover image updated successfully"));
 })
+
+const getUserChannelProfile = Asynchandler(async (req, res) => {
+  const{username}= req.params;
+  if(!username
+    || username.trim() === ""
+  ) {
+    throw new Apierror(400, "Username is required");
+  }
+  const channel= await User.aggregate([
+    {
+      $match: { username: username.toLowerCase() }
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers"
+      }
+    },
+    {
+      $lookup:{
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscriberedTo"
+
+       }
+    
+    },
+    {
+      $addFields:{
+        subscriberCount: { $size: "$subscribers" },
+
+        channelsSubscribedToCount: {
+         $size: "$subscriberedTo"
+        },
+        isSubscribed:{
+          $cond:{
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+            then: true,
+            else: false
+
+          }
+        },
+        //Project only the necessary fields or data
+        $project:{
+          fullname: 1,
+          username: 1,
+          avatar: 1,
+          coverImage: 1,
+          subscriberCount: 1,
+          channelsSubscribedToCount: 1,
+          isSubscribed: 1,
+          email: 1,
+
+        }
+      }
+
+    }
+  ])
+if(channel.length === 0) {
+    throw new Apierror(404, "Channel not found");
+  }
+  return res.status(200).json(new ApiResponse(200, channel[0], "Channel profile fetched successfully"));
+
+})
+ const getWatchHistory = Asynchandler(async (req, res) => { 
+   const user = await User.aggregate([
+    {
+      $match: { _id: new mongoose.Types.ObjectId(req.user?._id) }
+    },{
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline:[
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullname: 1,
+                    username: 1,
+                    avatar: 1
+                  }
+                }
+              ]
+            } 
+          },
+          {
+            $addFields:{
+              owner: { $first: "$owner" }
+            }
+          }
+        
+        ]
+      }
+    }
+   ])
+    if(user.length === 0) {
+      throw new Apierror(404, "User not found");
+    }
+    return res.status(200).json(new ApiResponse(200, user[0]?.watchHistory, "Watch history fetched successfully"));
+ })
 
 export {
   refreshAccessToken,
